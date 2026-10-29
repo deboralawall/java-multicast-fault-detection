@@ -1,55 +1,115 @@
-🛠️ # Pré-requisitos (Linux)
+# Multicast IP Communication Project
 
-Para usuários de Linux que possuem o VS Code mas ainda não configuraram o ambiente Java:
+This project demonstrates a simple Java multicast communication system that sends and receives messages over a multicast group using UDP. It is designed to simulate message transmission and detect possible omission or loss of packets from a sender by monitoring the number of messages received per source IP.
 
-    Instalar o JDK (Java Development Kit):
-    Abra o terminal (Ctrl+Alt+T) e execute:
-    Bash
+## Overview
 
-    sudo apt update
-    sudo apt install openjdk-17-jdk -y
+The application consists of two main components:
 
-    Verificar Instalação:
-    Bash
+- `MulticastSender.java`: sends periodic messages to the multicast group `224.0.0.2` on port `8877`.
+- `MulticastReceiver.java`: joins the same multicast group, receives the packets, counts messages by source IP, and calculates a suspicion level when expected traffic is not received.
 
-    java -version
+Each sender message includes:
 
-    Extensão recomendada: No VS Code, instale o Extension Pack for Java da Microsoft para facilitar a execução.
+- a timestamp in milliseconds
+- the local IP address of the sender
 
-🚀 #Como Executar
+Example payload:
 
-O sistema depende da execução simultânea de ambos os arquivos. Siga os passos abaixo no terminal do VS Code:
-1. Preparar o Receptor (Receiver)
+`1712345678901,192.168.0.10`
 
-O receptor deve ser iniciado primeiro para começar a monitorar o grupo multicast 224.0.0.2 na porta 8877.
-Bash
+---
 
+## Requirements
+
+### Linux
+
+If Java is not installed yet, run:
+
+```bash
+sudo apt update
+sudo apt install openjdk-17-jdk -y
+```
+
+Verify the installation:
+
+```bash
+java -version
+```
+
+It is also recommended to install the Java extension pack in VS Code to make compilation and execution easier.
+
+---
+
+## How to Run
+
+The application requires both sender and receiver to run at the same time.
+
+### 1. Start the receiver
+
+Open a terminal in the project folder and run:
+
+```bash
+cd Multicast/src
 javac MulticastReceiver.java
 java MulticastReceiver
+```
 
-2. Preparar o Emissor (Sender)
+This starts the receiver and joins the multicast group `224.0.0.2` on port `8877`.
 
-Em um segundo terminal, inicie o emissor que enviará o IP e o timestamp a cada 5 segundos.
-Bash
+### 2. Start the sender
 
+Open a second terminal and run:
+
+```bash
+cd Multicast/src
 javac MulticastSender.java
 java MulticastSender
+```
 
-📋 #Funcionamento do Algoritmo
+The sender will send a packet every 5 seconds, containing its local IP and a timestamp.
 
-O detector opera através de duas threads principais no MulticastReceiver:
+---
 
-    Thread de Escuta: Captura as mensagens multicast e contabiliza as entradas recebidas por cada endereço IP.
+## How the Algorithm Works
 
-    Thread de Monitoramento: Adormece por um período determinado (ex: 30 segundos) e, ao acordar, compara o volume de dados recebidos com o esperado.
+The receiver uses two threads:
 
-Lógica de Cálculo de Suspeita
+1. Listening thread
+   - Receives multicast packets.
+   - Extracts the source IP.
+   - Counts how many packets were received from each IP address.
 
-Se o intervalo de envio do Sender (Δ) é de 5 segundos e o monitoramento ocorre a cada 30 segundos, o número esperado de mensagens é 6. O nível de suspeita é calculado como:
-Suspeita(%)=(Mensagens EsperadasMensagens Esperadas−Mensagens Recebidas​)×100
+2. Monitoring thread
+   - Waits for a defined interval (30 seconds in this implementation).
+   - Compares the number of received packets against the expected value.
+   - If fewer packets were received than expected, it estimates a suspicion percentage.
 
-📂 #Estrutura do Projeto
+The expected number of messages is calculated as:
 
-    MulticastSender.java: Implementa o envio de datagramas para o grupo multicast com identificação do host.
+$$
+\text{expected} = \frac{30000}{5000} = 6
+$$
 
-    MulticastReceiver.java: Implementa a lógica multi-thread para recepção de dados e diagnóstico de falhas de omissão.
+That means, for a 30-second monitoring window and a sender interval of 5 seconds, the system expects 6 packets.
+
+The suspicion formula is:
+
+$$
+\text{Suspicion\%} = \frac{\text{expected} - \text{received}}{\text{expected}} \times 100
+$$
+
+If fewer packets than expected are received, the system marks that source as suspicious and resets the counter for the next cycle.
+
+---
+
+## Project Structure
+
+- `Multicast/src/MulticastSender.java`: sends multicast datagrams with the sender's host identification.
+- `Multicast/src/MulticastReceiver.java`: receives multicast packets, performs counting, and analyzes possible omissions.
+
+---
+
+## Purpose
+
+This project is a practical example of multicast networking in Java and illustrates how to monitor communication reliability in distributed systems. It is useful for learning UDP multicast communication, packet counting, and basic fault-detection logic.
